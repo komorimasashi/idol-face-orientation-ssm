@@ -1,4 +1,4 @@
-# monthly_forecast
+# idol-face-orientation-ssm
 
 `pitch` `roll` `yaw` の月次顔向き平均データを、1つのフォルダで管理するための統合作業フォルダです。
 
@@ -6,7 +6,7 @@
 
 - `data/`: 入力CSV
 - `nonhier_rw_forecast.stan`: 共通Stanモデル
-- `monthly_forecast_common.R`: 共通処理
+- `face_orientation_common.R`: 共通処理
 - `run_analysis.R`: 分析実行用スクリプト
 - `plot_forecast.R`: 描画用スクリプト
 - `out_rstan_forecast/<axis>/`: 軸ごとの推定結果
@@ -35,7 +35,7 @@
 分析:
 
 ```bash
-cd monthly_forecast
+cd idol-face-orientation-ssm
 Rscript run_analysis.R --axis pitch
 Rscript run_analysis.R --axis roll
 Rscript run_analysis.R --axis yaw
@@ -44,7 +44,7 @@ Rscript run_analysis.R --axis yaw
 描画:
 
 ```bash
-cd monthly_forecast
+cd idol-face-orientation-ssm
 Rscript plot_forecast.R --axis pitch
 Rscript plot_forecast.R --axis roll
 Rscript plot_forecast.R --axis yaw

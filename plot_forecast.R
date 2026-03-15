@@ -26,7 +26,7 @@ get_arg_value <- function(args, key, default = NULL) {
 
 script_dir <- dirname(get_this_script_path())
 
-source(file.path(script_dir, "monthly_forecast_common.R"), local = TRUE)
+source(file.path(script_dir, "face_orientation_common.R"), local = TRUE)
 
 cfg <- list(
   axis = "pitch",
