@@ -3,10 +3,15 @@
 .RData
 .Rproj.user/
 
-out_plot/
-out_rstan_forecast/
+data/raw_images/
+data/pose_visualizations/
+results/
 
 *.rds
 *.RData
 *.pdf
 *.png
+*.jpg
+*.jpeg
+__pycache__/
+*.pyc

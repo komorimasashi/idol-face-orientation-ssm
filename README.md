@@ -1,55 +1,123 @@
 # idol-face-orientation-ssm
 
-R and Stan code for analyzing monthly face-orientation data from idol group promotional photos with a state-space model.
+R, Stan, and Python code for organizing idol group face-orientation data and analyzing monthly `pitch`, `roll`, and `yaw` trends with a state-space model.
 
-This repository works with monthly averages of `pitch`, `roll`, and `yaw` for each song release. It is designed for an RStudio-based workflow: edit a small configuration block at the top of a script, then run the script with `Source`.
+This repository is organized around the full workflow from per-person head-pose estimates to the `ssm_input_pitch.csv`, `ssm_input_roll.csv`, and `ssm_input_yaw.csv` files used by the Stan model.
 
-## Overview
+## What This Repository Contains
 
-- Input data are organized by axis: `pitch`, `roll`, `yaw`
-- Each CSV contains monthly summary values by group
-- Estimation is done with a non-hierarchical state-space model in Stan
-- Plotting is handled separately from model fitting
+- Per-image face-orientation estimates exported from 6DRepNet
+- A combined CSV across groups and release dates
+- Scripts to aggregate individual-level estimates into SSM input files
+- R/Stan code for state-space modeling
+- Plotting scripts for both KDE-style exploratory plots and SSM output figures
 
 ## Repository Structure
 
-- `data/`: input CSV files
-- `run_analysis.R`: model fitting and posterior summary export
-- `plot_forecast.R`: plotting from saved forecast CSV files
-- `face_orientation_common.R`: shared R functions used by both scripts
-- `nonhier_rw_forecast.stan`: Stan model
-- `out_rstan_forecast/<axis>/`: model outputs for each axis
-- `out_plot/`: exported figures
+- `analysis/`: R and Stan files for the state-space model
+- `scripts/`: Python scripts for preprocessing and exploratory plotting
+- `data/angle_estimates/`: per-image head-pose CSV files
+- `data/combined/`: merged CSV built from per-group angle CSV files
+- `data/ssm_inputs/`: aggregated inputs for the Stan model
+- `data/raw_images/`: local-only place for raw promotional photos
+- `results/`: generated forecasts, figures, and other outputs
 
-## Requirements
+## Current Data Layout
 
-The scripts assume the following R packages are available:
+At the moment, the repository includes:
 
-- `rstan`
-- `ggplot2`
-- `dplyr`
-- `readr`
+- group-level per-image angle CSV files under `data/angle_estimates/`
+- a combined file at `data/combined/all_groups_combined.csv`
+- SSM-ready inputs in `data/ssm_inputs/`
 
-## Input Data
+Raw source images are intentionally not versioned. Put them under `data/raw_images/` only on your local machine if you need to rerun the face-orientation estimation step.
 
-The input files are:
+## Workflow
 
-- `data/ssm_input_pitch.csv`
-- `data/ssm_input_roll.csv`
-- `data/ssm_input_yaw.csv`
+### 1. Estimate per-image angles with 6DRepNet
 
-Each file is expected to include at least these columns:
+Script:
 
-- `group`
-- `time`
-- `y`
-- `se`
+- `scripts/estimate_angles_6drepnet.py`
 
-## RStudio Workflow
+Expected input:
 
-### 1. Run the analysis
+- a folder of face images for one release date, or
+- a parent folder containing multiple release-date folders
 
-Open `run_analysis.R` in RStudio and edit the `cfg <- list(...)` block near the top.
+Expected output:
+
+- one `*_angle.csv` file per release-date folder
+
+Example:
+
+```bash
+python scripts/estimate_angles_6drepnet.py data/raw_images/AKB48/ex_akb_20110119 data/angle_estimates/AKB48/ex_akb_20110119_angle.csv
+```
+
+Notes:
+
+- this script uses MediaPipe FaceMesh and 6DRepNet
+- `roll` is sign-flipped before saving
+- raw promotional images are not tracked in Git
+
+### 2. Combine per-group angle CSV files
+
+Script:
+
+- `scripts/combine_angle_csvs.py`
+
+Default behavior:
+
+- reads `data/angle_estimates/*/*_angle.csv`
+- writes `data/combined/all_groups_combined.csv`
+
+Example:
+
+```bash
+python scripts/combine_angle_csvs.py
+```
+
+### 3. Build SSM input files
+
+Script:
+
+- `scripts/build_ssm_inputs.py`
+
+Default behavior:
+
+- reads `data/combined/all_groups_combined.csv`
+- writes:
+  - `data/ssm_inputs/ssm_input_pitch.csv`
+  - `data/ssm_inputs/ssm_input_roll.csv`
+  - `data/ssm_inputs/ssm_input_yaw.csv`
+
+Example:
+
+```bash
+python scripts/build_ssm_inputs.py --time_mode date
+```
+
+### 4. Explore angle distributions with KDE plots
+
+Script:
+
+- `scripts/plot_kde.py`
+
+Default behavior:
+
+- reads `data/angle_estimates/` or a combined CSV
+- writes figures to `results/kde/`
+
+Example:
+
+```bash
+python scripts/plot_kde.py --combined_csv data/combined/all_groups_combined.csv --legend --fill
+```
+
+### 5. Run the state-space model in RStudio
+
+Open `analysis/run_analysis.R` in RStudio and edit the `cfg <- list(...)` block near the top.
 
 Typical settings:
 
@@ -63,11 +131,17 @@ cfg <- list(
 )
 ```
 
-Change `axis` to `"roll"` or `"yaw"` when needed, then run the file with `Source`.
+By default, the script reads:
 
-### 2. Create plots
+- `../data/ssm_inputs/ssm_input_<axis>.csv`
 
-Open `plot_forecast.R` in RStudio and edit the `cfg <- list(...)` block.
+and writes:
+
+- `../results/forecast/<axis>/`
+
+### 6. Plot the state-space model output in RStudio
+
+Open `analysis/plot_forecast.R` in RStudio and edit the `cfg <- list(...)` block.
 
 Typical settings:
 
@@ -80,55 +154,49 @@ cfg <- list(
 )
 ```
 
-- `axis`: `"pitch"`, `"roll"`, or `"yaw"`
-- `what = "lv"`: plot latent state estimates
-- `what = "y"`: plot observation-level predictive summaries
+By default, the script reads:
 
-Then run the file with `Source`.
+- `../results/forecast/<axis>/forecast_monthly_<axis>.csv`
 
-## Command-Line Usage
+and writes:
 
-The same scripts can also be run from the command line.
+- `../results/figures/`
 
-Analysis:
+## Requirements
 
-```bash
-cd idol-face-orientation-ssm
-Rscript run_analysis.R --axis pitch
-Rscript run_analysis.R --axis roll
-Rscript run_analysis.R --axis yaw
-```
+### Python
 
-Plotting:
+- `pandas`
+- `numpy`
+- `matplotlib`
+- `scikit-learn`
+- `opencv-python`
+- `mediapipe`
+- `sixdrepnet`
 
-```bash
-cd idol-face-orientation-ssm
-Rscript plot_forecast.R --axis pitch
-Rscript plot_forecast.R --axis roll
-Rscript plot_forecast.R --axis yaw
-```
-
-Examples with additional options:
+Install with:
 
 ```bash
-Rscript run_analysis.R --axis pitch --cutoff 2026-01-01 --iter 4000 --warmup 2000
-Rscript plot_forecast.R --axis pitch --what y --x-start 2010-01-01 --x-end 2026-01-01
+pip install -r requirements.txt
 ```
 
-## Outputs
+### R
 
-Analysis results are written to:
+- `rstan`
+- `ggplot2`
+- `dplyr`
+- `readr`
 
-- `out_rstan_forecast/pitch/`
-- `out_rstan_forecast/roll/`
-- `out_rstan_forecast/yaw/`
+Install with:
 
-Plots are written to:
+```r
+source("install_r_packages.R")
+```
 
-- `out_plot/`
+## Notes for Public Release
 
-## Notes
-
-- This repository is organized around monthly aggregated data, not individual-level face orientation measurements
-- Generated files such as `.rds`, `.pdf`, and `.png` are ignored via `.gitignore`
-- If you plan to reproduce the analysis on another machine, install the required R packages first
+- raw images are excluded from Git
+- generated figures and `.rds` files are ignored by `.gitignore`
+- this repository is intended to preserve the reproducible data flow from per-image angle estimates to SSM inputs
+- groups with name changes are treated as continuous series in the aggregated data
+- specifically, Keyakizaka46 and Sakurazaka46 are integrated as `Sakurazaka46`, and Hiragana Keyakizaka46 / Hinatazaka46 are integrated as `Hinatazaka46`
