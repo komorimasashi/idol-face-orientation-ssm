@@ -1,0 +1,12 @@
+.DS_Store
+.Rhistory
+.RData
+.Rproj.user/
+
+out_plot/
+out_rstan_forecast/
+
+*.rds
+*.RData
+*.pdf
+*.png
